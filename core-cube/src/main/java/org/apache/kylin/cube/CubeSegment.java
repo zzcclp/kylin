@@ -363,6 +363,11 @@ public class CubeSegment implements IBuildable, ISegment, Serializable {
         getDictionaries().put(dictKey, dictResPath);
     }
 
+    public String removeDictResPath(TblColRef col) {
+        String dictKey = col.getIdentity();
+        return getDictionaries().remove(dictKey);
+    }
+    
     public void setStorageLocationIdentifier(String storageLocationIdentifier) {
         this.storageLocationIdentifier = storageLocationIdentifier;
     }
