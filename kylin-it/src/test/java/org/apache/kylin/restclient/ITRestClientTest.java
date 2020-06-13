@@ -63,6 +63,7 @@ public class ITRestClientTest extends HBaseMetadataTestCase {
     public static void beforeClass() throws Exception {
         logger.info("random jetty port: " + PORT);
         sysPropsOverride.override("spring.profiles.active", "testing");
+        sysPropsOverride.override("kylin.web.set-config-enable", "true");
         sysPropsOverride.override("catalina.home", "."); // resources/log4j.properties ref ${catalina.home}
         staticCreateTestMetadata();
         startJetty();
