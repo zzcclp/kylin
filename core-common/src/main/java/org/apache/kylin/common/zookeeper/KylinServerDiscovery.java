@@ -45,9 +45,9 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.type.JavaType;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class KylinServerDiscovery implements Closeable {
 
@@ -176,7 +176,7 @@ public class KylinServerDiscovery implements Closeable {
             this.mapper = new ObjectMapper();
 
             // to bypass https://issues.apache.org/jira/browse/CURATOR-394
-            mapper.configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
             this.type = this.mapper.getTypeFactory().constructType(ServiceInstance.class);
         }
