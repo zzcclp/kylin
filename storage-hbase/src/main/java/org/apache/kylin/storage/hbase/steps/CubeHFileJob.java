@@ -110,7 +110,6 @@ public class CubeHFileJob extends AbstractHadoopJob {
             RegionLocator regionLocator = connection.getRegionLocator(TableName.valueOf(hTableName));
             // Automatic config !
             HFileOutputFormat3.configureIncrementalLoad(job, table, regionLocator);
-            HFileOutputFormat3.configureHConnection(job, hbaseConf, getJobTempDir());
             reconfigurePartitions(hbaseConf, partitionFilePath);
 
             job.setInputFormatClass(SequenceFileInputFormat.class);
