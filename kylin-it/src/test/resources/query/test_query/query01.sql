@@ -16,25 +16,8 @@
 -- limitations under the License.
 --
 
-select LSTG_FORMAT_NAME, (case
-    when SLR_SEGMENT_CD < 0 then 0
-    when SLR_SEGMENT_CD < 10 then 1
-    else 3
-    end),
-    sum(price)
-FROM test_kylin_fact
-    inner JOIN edw.test_cal_dt as test_cal_dt
-    ON test_kylin_fact.cal_dt = test_cal_dt.cal_dt
-    inner JOIN test_category_groupings
-    ON test_kylin_fact.leaf_categ_id = test_category_groupings.leaf_categ_id AND test_kylin_fact.lstg_site_id = test_category_groupings.site_id
-WHERE SLR_SEGMENT_CD < 16
-group by LSTG_FORMAT_NAME, (case
-    when SLR_SEGMENT_CD < 0 then 0
-    when SLR_SEGMENT_CD < 10 then 1
-    else 3
-    end)
-order by LSTG_FORMAT_NAME, (case
-    when SLR_SEGMENT_CD < 0 then 0
-    when SLR_SEGMENT_CD < 10 then 1
-    else 3
-    end)
+select SLR_SEGMENT_CD, sum(price), sum(case when LSTG_FORMAT_NAME is null then 0 else price end)
+ FROM test_kylin_fact
+ group by SLR_SEGMENT_CD
+ order by SLR_SEGMENT_CD
+;{"scanRowCount":300,"scanBytes":0,"scanFiles":1,"cuboidId":[14336]}

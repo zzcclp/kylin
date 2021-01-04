@@ -18,12 +18,13 @@
 package org.apache.kylin.query.runtime.plans
 
 import org.apache.calcite.DataContext
-import org.apache.calcite.rex.RexInputRef
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.kylin.query.relnode.OLAPProjectRel
 import org.apache.kylin.query.runtime.SparderRexVisitor
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.KylinFunctions._
+
 import scala.collection.JavaConverters._
 
 object ProjectPlan extends Logging {
@@ -35,14 +36,23 @@ object ProjectPlan extends Logging {
     val start = System.currentTimeMillis()
     val df = inputs.get(0)
     val duplicatedColumnsCount = collection.mutable.Map[Column, Int]()
-    val selectedColumns = rel.rewriteProjects.asScala
-      .map(rex => {
+    val olapContext = rel.getContext
+    val returnTupleInfo = olapContext.returnTupleInfo
+    val selectedColumnsTmp = rel.rewriteProjects.asScala.zipWithIndex.toArray
+      .map(rexTuple => {
         val visitor = new SparderRexVisitor(df,
           rel.getInput.getRowType,
           dataContext)
-        (rex.accept(visitor), rex.isInstanceOf[RexInputRef])
+        var rex = rexTuple._1
+        val idx = rexTuple._2
+        if ((idx < rel.getOriginExps.size()) && rel.getOriginExps.get(idx).isInstanceOf[RexCall]) {
+          rex = rel.getOriginExps.get(idx).asInstanceOf[RexCall]
+          (rex.accept(visitor), rex.isInstanceOf[RexInputRef])
+        } else {
+          (rex.accept(visitor), rex.isInstanceOf[RexInputRef])
+        }
       })
-      .zipWithIndex
+    val selectedColumns = selectedColumnsTmp.zipWithIndex
       .map(c => {
         //  add p0,p1 suffix for window queries will generate
         // indicator columns like false,false,false

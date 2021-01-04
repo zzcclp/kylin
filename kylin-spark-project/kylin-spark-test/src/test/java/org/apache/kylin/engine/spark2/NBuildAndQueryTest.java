@@ -64,7 +64,7 @@ public class NBuildAndQueryTest extends LocalWithSparkSessionTest {
         super.setup();
         overwriteSystemProp("kylin.env", "UT");
         overwriteSystemProp("isDeveloperMode", "true");
-        overwriteSystemProp("kylin.query.enable-dynamic-column", "false");
+        overwriteSystemProp("kylin.query.enable-dynamic-column", "true");
         Map<RealizationType, Integer> priorities = Maps.newHashMap();
         priorities.put(RealizationType.HYBRID, 0);
         priorities.put(RealizationType.CUBE, 0);
@@ -150,7 +150,7 @@ public class NBuildAndQueryTest extends LocalWithSparkSessionTest {
         String[] joinTypes = new String[] {"left"};
         List<QueryCallable> tasks = new ArrayList<>();
         for (String joinType : joinTypes) {
-            tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql"));
+            /*tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_cache"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_casewhen"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_castprunesegs"));
@@ -171,6 +171,7 @@ public class NBuildAndQueryTest extends LocalWithSparkSessionTest {
             //tasks.add(new QueryCallable(CompareLevel.NONE, joinType, "sql_expression"));
 
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_function"));
+            tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_groupby_expression"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_grouping"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_h2"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_hive"));
@@ -199,7 +200,8 @@ public class NBuildAndQueryTest extends LocalWithSparkSessionTest {
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_union"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_unionall"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_values"));
-            tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_window"));
+            tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_window"));*/
+            tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "test_query"));
         }
         logger.info("Total {} tasks.", tasks.size());
         return tasks;

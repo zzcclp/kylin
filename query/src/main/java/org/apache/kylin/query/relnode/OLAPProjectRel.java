@@ -73,6 +73,7 @@ import org.apache.kylin.query.relnode.visitor.TupleExpressionVisitor;
 import org.apache.kylin.query.schema.OLAPTable;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -124,6 +125,9 @@ public class OLAPProjectRel extends Project implements OLAPRel {
         return rewriteProjects;
     }
 
+    public ImmutableList<RexNode> getOriginExps() {
+        return this.exps;
+    }
     /**
      * Since the project under aggregate maybe reduce expressions by {@link org.apache.kylin.query.optrule.AggregateProjectReduceRule},
      * consider the count of expressions into cost, the reduced project will be used.

@@ -16,25 +16,12 @@
 -- limitations under the License.
 --
 
-select LSTG_FORMAT_NAME, (case
-    when USER_DEFINED_FIELD1 < 0 then 0
-    when USER_DEFINED_FIELD1 < 10 then 1
-    else 3
-    end),
-    sum(price)
-FROM test_kylin_fact
-    inner JOIN edw.test_cal_dt as test_cal_dt
-    ON test_kylin_fact.cal_dt = test_cal_dt.cal_dt
-    inner JOIN test_category_groupings
-    ON test_kylin_fact.leaf_categ_id = test_category_groupings.leaf_categ_id AND test_kylin_fact.lstg_site_id = test_category_groupings.site_id
-WHERE SLR_SEGMENT_CD < 16 and USER_DEFINED_FIELD1 is not null
-group by LSTG_FORMAT_NAME, (case
-    when USER_DEFINED_FIELD1 < 0 then 0
-    when USER_DEFINED_FIELD1 < 10 then 1
-    else 3
-    end)
-order by LSTG_FORMAT_NAME, (case
-    when USER_DEFINED_FIELD1 < 0 then 0
-    when USER_DEFINED_FIELD1 < 10 then 1
-    else 3
-    end)
+SELECT SELLER_ID,
+    CASE WHEN LSTG_SITE_ID > 1 THEN LSTG_SITE_ID
+         ELSE LEAF_CATEG_ID
+    END AS dyna_GROUP,
+    SUM(PRICE)
+FROM TEST_KYLIN_FACT
+GROUP BY 1, 2
+HAVING SELLER_id is not null and SUM(PRICE)>10
+;{"scanRowCount":10000,"scanBytes":0,"scanFiles":1,"cuboidId":[2097151]}

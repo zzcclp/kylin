@@ -37,11 +37,8 @@ object DerivedProcess {
 
   def process(
     olapContext: OLAPContext, cuboid: Cuboid, cubeInstance: CubeInstance, dataFrame: DataFrame,
-    request: GTCubeStorageQueryRequest): (DataFrame, DeriveSummary) = {
+    columnIndex: Array[Int]): (DataFrame, DeriveSummary) = {
     val tupleInfo = olapContext.returnTupleInfo
-    val gridTableMapping = cuboid.getCuboidToGridTableMapping
-    val columnIndex = gridTableMapping.getDimIndexes(request.getDimensions) ++
-      gridTableMapping.getMetricsIndexes(request.getMetrics)
     var hasDerived = false
     val alias = olapContext.firstTableScan.getBackupAlias
     var hostToDerives: List[DeriveData] = List.empty

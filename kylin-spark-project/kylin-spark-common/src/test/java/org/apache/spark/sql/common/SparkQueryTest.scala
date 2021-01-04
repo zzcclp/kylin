@@ -54,7 +54,11 @@ object SparkQueryTest {
         if (checkToRDD) {
             sparkDF.rdd.count() // Also attempt to deserialize as an RDD [SPARK-15791]
         }
-        
+        println("======================Kylin query execution:")
+        println(sparkDF.queryExecution)
+        println("======================Spark query execution:")
+        println(kylinDF.queryExecution)
+        println("============================================")
         val sparkAnswer = try sparkDF.collect().toSeq catch {
             case e: Exception =>
                 val errorMessage =
