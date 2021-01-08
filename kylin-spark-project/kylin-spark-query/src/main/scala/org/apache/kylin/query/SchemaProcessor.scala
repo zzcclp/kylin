@@ -41,7 +41,8 @@ object SchemaProcessor {
 
   private def genColumnNames(tableName: String, cuboid: Cuboid, mapping: CuboidToGridTableMapping) = {
     val coolumnMapping = initColumnNameMapping(cuboid).map(_._1)
-    val colAll = new ImmutableBitSet(0, mapping.getDataTypes.length)
+    val colAll = new ImmutableBitSet(0,
+      cuboid.getColumns.size() + cuboid.getCubeDesc.getMeasures.size())
     val measures = colAll.andNot(mapping.getPrimaryKey).asScala
     mapping.getPrimaryKey.asScala.map { i =>
       FactTableCulumnInfo(tableName, i, coolumnMapping.apply(i)).toString

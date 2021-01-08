@@ -73,6 +73,7 @@ import org.apache.kylin.query.relnode.visitor.TupleExpressionVisitor;
 import org.apache.kylin.query.schema.OLAPTable;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -122,6 +123,10 @@ public class OLAPProjectRel extends Project implements OLAPRel {
     @Override
     public List<RexNode> getProjects() {
         return rewriteProjects;
+    }
+
+    public ImmutableList<RexNode> getOriginExps() {
+        return this.exps;
     }
 
     /**

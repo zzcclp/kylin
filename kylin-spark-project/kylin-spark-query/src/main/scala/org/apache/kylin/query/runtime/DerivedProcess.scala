@@ -27,7 +27,6 @@ import org.apache.kylin.metadata.model.{JoinDesc, TblColRef}
 import org.apache.kylin.metadata.TableMetadataManager
 import org.apache.kylin.query.relnode.OLAPContext
 import org.apache.kylin.query.{DeriveTableColumnInfo, SchemaProcessor}
-import org.apache.kylin.storage.gtrecord.GTCubeStorageQueryRequest
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.functions._
 
@@ -37,11 +36,8 @@ object DerivedProcess {
 
   def process(
     olapContext: OLAPContext, cuboid: Cuboid, cubeInstance: CubeInstance, dataFrame: DataFrame,
-    request: GTCubeStorageQueryRequest): (DataFrame, DeriveSummary) = {
+    columnIndex: Array[Int]): (DataFrame, DeriveSummary) = {
     val tupleInfo = olapContext.returnTupleInfo
-    val gridTableMapping = cuboid.getCuboidToGridTableMapping
-    val columnIndex = gridTableMapping.getDimIndexes(request.getDimensions) ++
-      gridTableMapping.getMetricsIndexes(request.getMetrics)
     var hasDerived = false
     val alias = olapContext.firstTableScan.getBackupAlias
     var hostToDerives: List[DeriveData] = List.empty

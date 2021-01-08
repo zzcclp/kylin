@@ -247,6 +247,10 @@ public class Cuboid implements Comparable<Cuboid>, Serializable {
         return cuboidToGridTableMapping;
     }
 
+    public void setCuboidToGridTableMapping(CuboidToGridTableMapping cuboidToGridTableMapping) {
+        this.cuboidToGridTableMapping = cuboidToGridTableMapping;
+    }
+
     public static String getDisplayName(long cuboidID, int dimensionCount) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < dimensionCount; ++i) {

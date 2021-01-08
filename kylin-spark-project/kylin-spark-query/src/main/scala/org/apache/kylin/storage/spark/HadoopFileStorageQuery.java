@@ -18,24 +18,32 @@
 
 package org.apache.kylin.storage.spark;
 
-import org.apache.kylin.shaded.com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.kylin.common.QueryContextFacade;
 import org.apache.kylin.cube.CubeInstance;
-import org.apache.kylin.cube.RawQueryLastHacker;
 import org.apache.kylin.cube.cuboid.Cuboid;
+import org.apache.kylin.cube.gridtable.CuboidToGridTableMapping;
+import org.apache.kylin.cube.gridtable.CuboidToGridTableMappingExt;
+import org.apache.kylin.cube.RawQueryLastHacker;
+import org.apache.kylin.metadata.expression.TupleExpression;
 import org.apache.kylin.metadata.filter.TupleFilter;
+import org.apache.kylin.metadata.model.DynamicFunctionDesc;
 import org.apache.kylin.metadata.model.FunctionDesc;
 import org.apache.kylin.metadata.model.TblColRef;
 import org.apache.kylin.metadata.realization.SQLDigest;
 import org.apache.kylin.metadata.tuple.TupleInfo;
+import org.apache.kylin.shaded.com.google.common.collect.Lists;
+import org.apache.kylin.shaded.com.google.common.collect.Sets;
 import org.apache.kylin.storage.StorageContext;
 import org.apache.kylin.storage.gtrecord.GTCubeStorageQueryBase;
 import org.apache.kylin.storage.gtrecord.GTCubeStorageQueryRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 
 public class HadoopFileStorageQuery extends GTCubeStorageQueryBase {
     private static final Logger log = LoggerFactory.getLogger(HadoopFileStorageQuery.class);
@@ -49,7 +57,7 @@ public class HadoopFileStorageQuery extends GTCubeStorageQueryBase {
         throw new UnsupportedOperationException("Unsupported getGTStorage.");
     }
 
-
+    @Override
     public GTCubeStorageQueryRequest getStorageQueryRequest(StorageContext context, SQLDigest sqlDigest,
                                                             TupleInfo returnTupleInfo) {
         context.setStorageQuery(this);
@@ -84,7 +92,33 @@ public class HadoopFileStorageQuery extends GTCubeStorageQueryBase {
         dimensionsD.addAll(otherDimsD);
         Cuboid cuboid = findCuboid(cubeInstance, dimensionsD, metrics);
         context.setCuboid(cuboid);
-        return new GTCubeStorageQueryRequest(cuboid, dimensionsD, groupsD, null, null, null,
-                metrics, null, null, null, context);
+
+        boolean noDynamicCols;
+        // dynamic dimensions
+        List<TblColRef> dynGroups = Lists.newArrayList(sqlDigest.dynGroupbyColumns.keySet());
+        noDynamicCols = dynGroups.isEmpty();
+        List<TupleExpression> dynGroupExprs = Lists.newArrayListWithExpectedSize(sqlDigest.dynGroupbyColumns.size());
+        for (TblColRef dynGroupCol : dynGroups) {
+            dynGroupExprs.add(sqlDigest.dynGroupbyColumns.get(dynGroupCol));
+        }
+        // dynamic measures
+        List<DynamicFunctionDesc> dynFuncs = sqlDigest.dynAggregations;
+        noDynamicCols = noDynamicCols && dynFuncs.isEmpty();
+
+        CuboidToGridTableMapping mapping = noDynamicCols ? new CuboidToGridTableMapping(cuboid)
+                : new CuboidToGridTableMappingExt(cuboid, dynGroups, dynFuncs);
+        context.setMapping(mapping);
+        cuboid.setCuboidToGridTableMapping(mapping);
+
+        // check query deadline
+        QueryContextFacade.current().checkMillisBeforeDeadline();
+
+        log.info(
+                "Cuboid identified: cube={}, cuboidId={}, groupsD={}, limitPushdown={}, limitLevel={}, storageAggr={}",
+                cubeInstance.getName(), cuboid.getId(), groupsD, context.getFinalPushDownLimit(),
+                context.getStorageLimitLevel(), context.isNeedStorageAggregation());
+
+        return new GTCubeStorageQueryRequest(cuboid, dimensionsD, groupsD, dynGroups,
+                dynGroupExprs, null, metrics, dynFuncs, null, null, context);
     }
 }

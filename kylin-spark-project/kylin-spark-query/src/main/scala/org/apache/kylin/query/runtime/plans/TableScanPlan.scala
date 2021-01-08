@@ -23,12 +23,14 @@ import java.util.concurrent.ConcurrentHashMap
 import org.apache.calcite.DataContext
 import org.apache.kylin.common.QueryContextFacade
 import org.apache.kylin.cube.CubeInstance
+import org.apache.kylin.cube.gridtable.CuboidToGridTableMapping
 import org.apache.kylin.metadata.model._
 import org.apache.kylin.metadata.tuple.TupleInfo
 import org.apache.kylin.query.SchemaProcessor
 import org.apache.kylin.query.exception.UnsupportedQueryException
 import org.apache.kylin.query.relnode.{OLAPRel, OLAPTableScan}
 import org.apache.kylin.query.runtime.{DerivedProcess, RuntimeHelper, SparderLookupManager}
+import org.apache.kylin.storage.gtrecord.GTCubeStorageQueryRequest
 import org.apache.kylin.storage.hybrid.HybridInstance
 import org.apache.kylin.storage.spark.HadoopFileStorageQuery
 import org.apache.spark.sql.functions.col
@@ -38,6 +40,7 @@ import org.apache.spark.sql.{DataFrame, SparderContext, _}
 import org.apache.spark.utils.LogEx
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 // scalastyle:off
 object TableScanPlan extends LogEx {
@@ -68,12 +71,10 @@ object TableScanPlan extends LogEx {
       olapContext.storageContext,
       olapContext.getSQLDigest,
       returnTupleInfo)
-    request.getGroups
     val cuboid = request.getCuboid
     val gridTableMapping = cuboid.getCuboidToGridTableMapping
 
-    val columnIndex = gridTableMapping.getDimIndexes(request.getDimensions) ++
-      gridTableMapping.getMetricsIndexes(request.getMetrics)
+    val columnIndex = getColumnsIdx(gridTableMapping, request)
     val factTableAlias = olapContext.firstTableScan.getBackupAlias
     val schemaNames = SchemaProcessor.buildGTSchema(cuboid, factTableAlias)
     import org.apache.kylin.query.implicits.implicits._
@@ -83,7 +84,7 @@ object TableScanPlan extends LogEx {
       .toDF(schemaNames: _*)
     // may have multi TopN measures.
     val topNMeasureIndexes = df.schema.fields.map(_.dataType).zipWithIndex.filter(_._1.isInstanceOf[ArrayType]).map(_._2)
-    val tuple = DerivedProcess.process(olapContext, cuboid, cubeInstance, df, request)
+    val tuple = DerivedProcess.process(olapContext, cuboid, cubeInstance, df, columnIndex)
     df = tuple._1
     var topNMapping: Map[Int, Column] = Map.empty
     val tupleIdx = getTupleIdx(request.getDimensions, request.getMetrics, olapContext.returnTupleInfo)
@@ -187,40 +188,64 @@ object TableScanPlan extends LogEx {
     null
   }
 
+  def getColumnsIdx(mapping: CuboidToGridTableMapping,
+                    request: GTCubeStorageQueryRequest): Array[Int] = {
+    val columnIdx = new ArrayBuffer[Int]()
+    // add the dimensions index
+    columnIdx ++= mapping.getDimIndexes(request.getDimensions)
+    request.getMetrics.toArray(Array[FunctionDesc]()).map(metric => {
+      if (metric.isInstanceOf[DynamicFunctionDesc]) {
+        val dynMetrics = metric.asInstanceOf[DynamicFunctionDesc]
+          .getRuntimeFuncMap.values().toArray(Array[FunctionDesc]())
+        dynMetrics.map(dynMetric => {
+          columnIdx += mapping.getIndexOf(dynMetric)
+        })
+      } else {
+        columnIdx += mapping.getIndexOf(metric)
+      }
+    })
+    columnIdx.toArray
+  }
+
   // copy from NCubeTupleConverter
   def getTupleIdx(selectedDimensions: util.Set[TblColRef],
                   selectedMetrics: util.Set[FunctionDesc],
                   tupleInfo: TupleInfo): Array[Int] = {
-    val tupleIdx: Array[Int] =
-      new Array[Int](selectedDimensions.size + selectedMetrics.size)
+    val tupleIdx = new ArrayBuffer[Int]()
 
-    var i = 0
     // pre-calculate dimension index mapping to tuple
     selectedDimensions.asScala.foreach(
       dim => {
-        tupleIdx(i) =
-          if (tupleInfo.hasColumn(dim)) tupleInfo.getColumnIndex(dim) else -1
-        i += 1
+        tupleIdx += (if (tupleInfo.hasColumn(dim)) tupleInfo.getColumnIndex(dim) else -1)
       }
     )
 
     selectedMetrics.asScala.foreach(
       metric => {
         if (metric.needRewrite) {
-          val rewriteFieldName = metric.getRewriteFieldName
-          tupleIdx(i) =
-            if (tupleInfo.hasField(rewriteFieldName))
-              tupleInfo.getFieldIndex(rewriteFieldName)
-            else -1
+          if (metric.isInstanceOf[DynamicFunctionDesc]) {
+            val dynMetrics = metric.asInstanceOf[DynamicFunctionDesc]
+              .getRuntimeFuncMap.values().toArray(Array[FunctionDesc]())
+            dynMetrics.map(dynMetric => {
+              val rewriteFieldName = dynMetric.getRewriteFieldName
+              tupleIdx +=
+                (if (tupleInfo.hasField(rewriteFieldName)) tupleInfo.getFieldIndex(rewriteFieldName)
+                else -1)
+            })
+          } else {
+            val rewriteFieldName = metric.getRewriteFieldName
+            tupleIdx +=
+              (if (tupleInfo.hasField(rewriteFieldName)) tupleInfo.getFieldIndex(rewriteFieldName)
+              else -1)
+          }
         } else { // a non-rewrite metrics (like sum, or dimension playing as metrics) is like a dimension column
           val col = metric.getParameter.getColRef
-          tupleIdx(i) =
-            if (tupleInfo.hasColumn(col)) tupleInfo.getColumnIndex(col) else -1
+          tupleIdx +=
+            (if (tupleInfo.hasColumn(col)) tupleInfo.getColumnIndex(col) else -1)
         }
-        i += 1
       }
     )
-    tupleIdx
+    tupleIdx.toArray
   }
 
   def createLookupTable(rel: OLAPTableScan, dataContext: DataContext): DataFrame = {
