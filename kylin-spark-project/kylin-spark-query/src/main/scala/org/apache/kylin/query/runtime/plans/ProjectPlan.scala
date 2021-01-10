@@ -35,6 +35,8 @@ object ProjectPlan extends Logging {
     val start = System.currentTimeMillis()
     val df = inputs.get(0)
     val duplicatedColumnsCount = collection.mutable.Map[Column, Int]()
+    val olapContext = rel.getContext
+    val returnTupleInfo = olapContext.returnTupleInfo
     val selectedColumnsTuples = rel.rewriteProjects.asScala.zipWithIndex.toArray
       .map(rexTuple => {
         val visitor = new SparderRexVisitor(df,
