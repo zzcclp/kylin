@@ -36,15 +36,17 @@ object ProjectPlan extends Logging {
     val df = inputs.get(0)
     val duplicatedColumnsCount = collection.mutable.Map[Column, Int]()
     val olapContext = rel.getContext
-    val returnTupleInfo = olapContext.returnTupleInfo
     val selectedColumnsTuples = rel.rewriteProjects.asScala.zipWithIndex.toArray
       .map(rexTuple => {
-        val visitor = new SparderRexVisitor(df,
-          rel.getInput.getRowType,
-          dataContext)
         var rex = rexTuple._1
         val idx = rexTuple._2
-        if ((idx < rel.getOriginExps.size()) && rel.getOriginExps.get(idx).isInstanceOf[RexCall]) {
+        val visitor = new SparderRexVisitor(df,
+          rel.getInput.getRowType,
+          dataContext,
+          if (olapContext.expsColsReplaceCols.containsKey(idx))
+            olapContext.expsColsReplaceCols.get(idx) else null,
+          olapContext.expsNeedReplaceCols.containsKey(idx))
+        if (olapContext.expsIsRexCall.containsKey(idx)) {
           rex = rel.getOriginExps.get(idx).asInstanceOf[RexCall]
           (rex.accept(visitor), rex.isInstanceOf[RexInputRef])
         } else {

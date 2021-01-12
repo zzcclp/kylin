@@ -488,6 +488,7 @@ public class OLAPAggregateRel extends Aggregate implements OLAPRel {
         implementor.visitChild(this, getInput());
 
         this.rewriting = true;
+        this.getContext().rewriteFieldsMappingToIdx();
 
         // only rewrite the innermost aggregation
         if (needRewrite()) {
@@ -633,9 +634,16 @@ public class OLAPAggregateRel extends Aggregate implements OLAPRel {
                 aggFuncList.addAll(((DynamicFunctionDesc) aggFunc).getRuntimeFuncMap().values());
             }
 
+            Map<String, String> rewriteFieldRelation = new HashMap<>();
             for (FunctionDesc entry : aggFuncList) {
                 if (entry.needRewriteField()) {
                     String rewriteFieldName = entry.getRewriteFieldName();
+                    rewriteFieldRelation.put(
+                            entry.getParameter().getType()
+                                    .equals(FunctionDesc.PARAMETER_TYPE_COLUMN) ?
+                                    entry.getParameter().getColRef().getName() :
+                                    entry.getParameter().getValue(),
+                            rewriteFieldName);
                     RelDataType rewriteFieldType = OLAPTable.createSqlType(typeFactory, entry.getRewriteFieldType(),
                             true);
                     this.context.rewriteFields.put(rewriteFieldName, rewriteFieldType);
@@ -650,6 +658,10 @@ public class OLAPAggregateRel extends Aggregate implements OLAPRel {
                     TblColRef column = inputColumnRowType.getColumnByIndex(index);
                     if (!column.isInnerColumn() && this.context.belongToContextTables(column)) {
                         this.context.metricsColumns.add(column);
+                    }
+                    if (aggFunc instanceof DynamicFunctionDesc) {
+                        this.getContext().expsNeedReplaceCols.put(index, true);
+                        this.getContext().expsColsStrReplaceCols.put(index, rewriteFieldRelation);
                     }
                 }
             }

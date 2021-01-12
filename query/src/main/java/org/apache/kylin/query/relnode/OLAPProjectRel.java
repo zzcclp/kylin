@@ -188,6 +188,9 @@ public class OLAPProjectRel extends Project implements OLAPRel {
         TupleExpressionVisitor visitor = new TupleExpressionVisitor(inputColumnRowType, ifVerify);
         for (int i = 0; i < this.rewriteProjects.size(); i++) {
             RexNode rex = this.rewriteProjects.get(i);
+            if (rex instanceof RexCall) {
+                this.getContext().expsIsRexCall.put(i, true);
+            }
             RelDataTypeField columnField = this.rowType.getFieldList().get(i);
             String fieldName = columnField.getName();
 

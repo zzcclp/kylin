@@ -22,8 +22,15 @@ select SLR_SEGMENT_CD,
     when SLR_SEGMENT_CD < 10 then 1
     else 3
     end),
+count(LSTG_FORMAT_NAME),
 sum(price),
-sum(case when LSTG_FORMAT_NAME is null then 0 else price end)
+sum(0.9*(price+50)) as gmv,
+sum(case when LSTG_FORMAT_NAME is null then 0 else price end),
+sum(case
+    when LSTG_FORMAT_NAME = 'ABIN' AND LSTG_FORMAT_NAME = 'FP-GTC' then 2*price + ITEM_COUNT
+    when LSTG_FORMAT_NAME = 'Auction' then (1+2)*price*(2+3)+(2+3)*(3+2)*(4+5)-4+5
+    else 3
+    end)
 FROM test_kylin_fact
 group by SLR_SEGMENT_CD, (case
                              when SLR_SEGMENT_CD < 0 then 0

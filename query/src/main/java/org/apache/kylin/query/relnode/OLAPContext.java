@@ -31,6 +31,7 @@ import java.util.Set;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.commons.collections.MapUtils;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.threadlocal.InternalThreadLocal;
 import org.apache.kylin.common.util.DateFormat;
@@ -169,6 +170,12 @@ public class OLAPContext {
     public Map<TblColRef, RelDataType> dynamicFields = new HashMap<>();
 
     public Map<TblColRef, TupleExpression> dynGroupBy = new HashMap<>();
+
+    // for dyanmic columns
+    public Map<Integer, Boolean> expsIsRexCall = new HashMap();
+    public Map<Integer, Boolean> expsNeedReplaceCols = new HashMap<>();
+    public Map<Integer, Map<String, String>> expsColsStrReplaceCols = new HashMap<>();
+    public Map<Integer, Map<Integer, Integer>> expsColsReplaceCols = new HashMap<>();
 
     // hive query
     public String sql = "";
@@ -347,4 +354,23 @@ public class OLAPContext {
         public void check(List<OLAPContext> contexts, KylinConfig config) throws IllegalStateException;
     }
 
+    public void rewriteFieldsMappingToIdx() {
+        if (MapUtils.isNotEmpty(expsColsStrReplaceCols) && returnTupleInfo != null) {
+            for (Integer index : expsColsStrReplaceCols.keySet()) {
+                Map<Integer, Integer> colsReplaceMap = new HashMap<>();
+                Map<String, String> colsStrReplaceMap = expsColsStrReplaceCols.get(index);
+                for (String columnKey : colsStrReplaceMap.keySet()) {
+                    if (this.returnTupleInfo.hasField(columnKey)) {
+                        colsReplaceMap.put(this.returnTupleInfo.getFieldIndex(columnKey),
+                                this.returnTupleInfo.getFieldIndex(colsStrReplaceMap.get(columnKey)));
+                    } else {
+                        // constant
+                        colsReplaceMap.put(-1,
+                                this.returnTupleInfo.getFieldIndex(colsStrReplaceMap.get(columnKey)));
+                    }
+                }
+                expsColsReplaceCols.put(index, colsReplaceMap);
+            }
+        }
+    }
 }

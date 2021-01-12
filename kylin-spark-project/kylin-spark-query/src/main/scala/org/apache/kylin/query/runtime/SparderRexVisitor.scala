@@ -20,6 +20,7 @@ package org.apache.kylin.query.runtime
 
 import java.math.BigDecimal
 import java.sql.Timestamp
+import java.util
 
 import org.apache.calcite.DataContext
 import org.apache.calcite.rel.`type`.RelDataType
@@ -27,7 +28,9 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind._
 import org.apache.calcite.sql.`type`.{BasicSqlType, IntervalSqlType, SqlTypeFamily, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlDatetimeSubtractionOperator
+import org.apache.commons.collections.MapUtils
 import org.apache.kylin.common.util.DateFormat
+import org.apache.kylin.query.relnode.OLAPContext
 import org.apache.spark.sql.KylinFunctions._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.functions._
@@ -50,18 +53,25 @@ import scala.collection.mutable.ListBuffer
 class SparderRexVisitor(
   val inputFieldNames: Array[String],
   val rowType: RelDataType,
-  val dataContext: DataContext)
+  val dataContext: DataContext,
+  val replaceCols: util.Map[Integer, Integer], val replaceFields: Boolean)
   extends RexVisitorImpl[Any](true) {
 
   def this(
     dfs: Array[DataFrame],
     rowType: RelDataType,
-    dataContext: DataContext) = this(dfs.flatMap(df => df.schema.fieldNames), rowType, dataContext)
+    dataContext: DataContext,
+    replaceCols: util.Map[Integer, Integer],
+    replaceFields: Boolean) =
+    this(dfs.flatMap(df => df.schema.fieldNames), rowType, dataContext, replaceCols, replaceFields)
 
   def this(
     df: DataFrame,
     rowType: RelDataType,
-    dataContext: DataContext) = this(Array(df), rowType, dataContext)
+    dataContext: DataContext,
+    replaceCols: util.Map[Integer, Integer] = null,
+    replaceFields: Boolean = false) =
+    this(Array(df), rowType, dataContext, replaceCols, replaceFields)
 
   // scalastyle:off
   override def visitCall(call: RexCall): Any = {
@@ -274,8 +284,18 @@ class SparderRexVisitor(
   override def visitLocalRef(localRef: RexLocalRef) =
     throw new UnsupportedOperationException("local ref:" + localRef)
 
-  override def visitInputRef(inputRef: RexInputRef): Column =
-    col(inputFieldNames(inputRef.getIndex))
+  override def visitInputRef(inputRef: RexInputRef): Column = {
+    if (!replaceFields) {
+      col(inputFieldNames(inputRef.getIndex))
+    } else {
+      assert(MapUtils.isNotEmpty(replaceCols))
+      if (replaceCols.containsKey(inputRef.getIndex)) {
+        col(inputFieldNames(replaceCols.get(inputRef.getIndex)))
+      } else {
+        col(inputFieldNames(inputRef.getIndex))
+      }
+    }
+  }
 
   override def visitLiteral(literal: RexLiteral): Any = {
     val v = convertFilterValueAfterAggr(literal)

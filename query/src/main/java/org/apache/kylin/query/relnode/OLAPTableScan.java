@@ -464,6 +464,7 @@ public class OLAPTableScan extends TableScan implements OLAPRel, EnumerableRel {
 
             this.columnRowType = new ColumnRowType(newCols);
         }
+        context.setReturnTupleInfo(rowType, columnRowType);
     }
 
     @Override
