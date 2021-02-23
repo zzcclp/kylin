@@ -215,6 +215,7 @@ class FilePruner(cubeInstance: CubeInstance,
     if (fs.isDirectory(path) && fs.exists(path)) {
       val maybeStatuses = fsc.getLeafFiles(path)
       if (maybeStatuses.isDefined) {
+        logInfo(s"================= Get cached path=${path.toString} from fsc=${fsc.toString}")
         SegmentDirectory(seg.segmentName, seg.identifier, maybeStatuses.get)
       } else {
         val statuses = fs.listStatus(path)
@@ -239,28 +240,35 @@ class FilePruner(cubeInstance: CubeInstance,
     logInfo(s"Applying time partition filters: ${timePartitionFilters.mkString(",")}")
 
     val fsc = ShardFileStatusCache.getFileStatusCache(session)
+    logInfo(s"================= fsc=${fsc.toString} session=${session.toString}")
 
+    var startTime1 = System.nanoTime
     // segment pruning
     var selected = afterPruning("segment", timePartitionFilters, segmentDirs) {
       pruneSegments
     }
+    logInfo(s"================= Segment pruning in ${(System.nanoTime() - startTime1).toDouble / 1000000} ms")
 
+    startTime1 = System.nanoTime
     // fetch segment directories info in parallel
     selected = selected.par.map(seg => {
       getFileStatusBySeg(seg, fsc)
     }).filter(_.files.nonEmpty).seq
+    logInfo(s"================= Segment get filestatus in ${(System.nanoTime() - startTime1).toDouble / 1000000} ms")
 
+    startTime1 = System.nanoTime
     // shards pruning
     selected = afterPruning("shard", dataFilters, selected) {
       pruneShards
     }
+    logInfo(s"================= Shard pruning in ${(System.nanoTime() - startTime1).toDouble / 1000000} ms")
     // generate the ShardSpec
     shardSpec = genShardSpec(selected)
     //    QueryContextFacade.current().record("shard_pruning")
     val totalFileSize = selected.flatMap(_.files).map(_.getLen).sum
     logInfo(s"After files pruning, total file size is ${totalFileSize}")
     setShufflePartitions(totalFileSize, session)
-    logInfo(s"Files pruning in ${(System.nanoTime() - startTime).toDouble / 1000000} ms")
+    logInfo(s"================= Files pruning in ${(System.nanoTime() - startTime).toDouble / 1000000} ms")
     if (selected.isEmpty) {
       val value = Seq.empty[PartitionDirectory]
       cached.put((partitionFilters, dataFilters), value)
