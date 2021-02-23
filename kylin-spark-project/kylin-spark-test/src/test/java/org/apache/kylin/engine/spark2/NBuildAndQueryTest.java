@@ -150,7 +150,7 @@ public class NBuildAndQueryTest extends LocalWithSparkSessionTest {
         String[] joinTypes = new String[] {"left"};
         List<QueryCallable> tasks = new ArrayList<>();
         for (String joinType : joinTypes) {
-            tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql"));
+            /*tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_cache"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_casewhen"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_castprunesegs"));
@@ -199,7 +199,8 @@ public class NBuildAndQueryTest extends LocalWithSparkSessionTest {
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_union"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_unionall"));
             tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_values"));
-            tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_window"));
+            tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "sql_window"));*/
+            tasks.add(new QueryCallable(CompareLevel.SAME, joinType, "test_query"));
         }
         logger.info("Total {} tasks.", tasks.size());
         return tasks;
