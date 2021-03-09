@@ -3088,4 +3088,12 @@ public abstract class KylinConfigBase implements Serializable {
     public String getKerberosPrincipal() {
         return getOptional("kylin.kerberos.principal");
     }
+
+    // ============================================================================
+    // MLSQL Conf
+    // ============================================================================
+
+    public Map<String, String> getMlsqlConfigOverride() {
+        return getPropertiesByPrefix("kylin.query.mlsql-conf.");
+    }
 }

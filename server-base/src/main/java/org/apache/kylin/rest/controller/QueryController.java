@@ -32,6 +32,7 @@ import java.util.TreeSet;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.QueryContext;
 import org.apache.kylin.common.QueryContextFacade;
@@ -66,7 +67,10 @@ import org.supercsv.io.CsvListWriter;
 import org.supercsv.io.ICsvListWriter;
 import org.supercsv.prefs.CsvPreference;
 
+import tech.mlsql.service.MlsqlService;
+
 import org.apache.kylin.shaded.com.google.common.collect.Maps;
+import tech.mlsql.service.SQLHeadHint;
 
 /**
  * Handle query requests.
@@ -90,7 +94,26 @@ public class QueryController extends BasicController {
     @RequestMapping(value = "/query", method = RequestMethod.POST, produces = { "application/json" })
     @ResponseBody
     public SQLResponse query(@RequestBody PrepareSqlRequest sqlRequest) {
+        if (StringUtils.isNotEmpty(sqlRequest.getSql())) {
+            SQLHeadHint headerHint = MlsqlService.parseHint(sqlRequest.getSql());
+            if (StringUtils.isNotEmpty(headerHint.t())) {
+                return genSQLResponse(MlsqlService.executeScript(sqlRequest.getSql(), headerHint));
+            }
+        }
         return queryService.doQueryWithCache(sqlRequest);
+    }
+
+    public SQLResponse genSQLResponse(String result) {
+        List<SelectedColumnMeta> columnMetas = new ArrayList<>(1);
+        SelectedColumnMeta meta = new SelectedColumnMeta(false, true, false, false, 1,
+                true, 256, "Result", "Result", null, null, null,
+                256, 0, 12, "VARCHAR", true, false, false);
+        columnMetas.add(meta);
+        List<String> resultValue = new ArrayList<>(1);
+        resultValue.add(result);
+        List<List<String>> resultList = new ArrayList<>(1);
+        resultList.add(resultValue);
+        return new SQLResponse(columnMetas, resultList, 1, false, null);
     }
 
     // TODO should be just "prepare" a statement, get back expected ResultSetMetaData
